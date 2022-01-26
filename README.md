@@ -1,1 +1,2 @@
-# fin-adventure
+# financial calculus
+
