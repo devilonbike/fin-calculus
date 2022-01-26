@@ -1,1 +1,1 @@
-# Notebooks with fin experiments
+# Python notebook
