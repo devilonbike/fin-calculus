@@ -5,5 +5,6 @@ Recommended reading order:
 2. Stochastic Processes
 3. Risk Neutral Pricing
 4. Equity
-5. Interest Rates
-6. Inflation
+5. Equity Options
+6. Interest Rates
+7. Inflation
