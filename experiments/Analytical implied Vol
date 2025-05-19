@@ -1,0 +1,94 @@
+import math
+
+DBL_EPSILON = 2.220446049250313e-16
+DBL_MIN = 2.2250738585072014e-308
+ONE_OVER_SQRT_TWO_PI = 1.0 / math.sqrt(2.0 * math.pi)
+SQRT_TWO_PI = math.sqrt(2.0 * math.pi)
+
+def norm_pdf(x):
+    return ONE_OVER_SQRT_TWO_PI * math.exp(-0.5 * x * x)
+
+def norm_cdf(x):
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+def phi_tilde_times_x(x):
+    if abs(x) <= 0.61200318096248076056:
+        h = (x * x - 0.18727394675409748661) * 5.3397710537550806412
+        g = (0.19641549843774702457 + h * (0.0029444812226268915305 + 3.095828855856470717e-05 * h)) / (1 + h * (0.030261016846592326803 + h * (0.00033735461911896198861 + h * (1.290112376540573289e-06 - 1.6711975835244204502e-09 * h))))
+        return ONE_OVER_SQRT_TWO_PI + x * (0.5 + x * g)
+    if x > 0:
+        return phi_tilde_times_x(-x) + x
+    if x >= -3.5:
+        g = (0.39894228040096173296 + x * ((-0.28827250122716400843) + x * (0.11748934770055073669 + x * ((-0.029208930498324232842) + x * (0.0046704817087348921557 + x * ((-0.00044448405482476358857) + x * (1.9865267442385935787e-05 + x * (7.6387393474143610035e-10 + 1.3291525220137582449e-11 * x)))))))) / (1 + x * ((-1.9759061396728604494) + x * (1.7709332198933623888 + x * ((-0.94350250026446231963) + x * (0.32816118145388593816 + x * ((-0.076697408088214742324) + x * (0.011843224303096222834 + x * ((-0.0011151416365524860908) + 4.9741005333758689307e-05 * x))))))))
+        return math.exp(-0.5 * (x * x)) * g
+    w = 1 / (x * x)
+    g = (2.999999999999991221 + w * (236.54556627823149931 + w * (6812.6773449358787324 + w * (89697.941598360784061 + w * (551639.20591268613879 + w * (1434506.1123335662019 + w * (1150498.8246344881836 + 11867.600400997691371 * w))))))) / (1 + w * (83.848522092737134602 + w * (2655.1350587809577877 + w * (40555.290884673789153 + w * (316673.7476299376429 + w * (1232979.5958024320559 + w * (2140981.0540619049948 + 1214566.7804093160403 * w)))))))
+    return ONE_OVER_SQRT_TWO_PI * math.exp(-0.5 * (x * x)) * w * (1 - g * w)
+
+def phi_tilde(x):
+    return phi_tilde_times_x(x) / x
+
+def inv_phi_tilde(phi_tilde_star):
+    if phi_tilde_star > 1:
+        return -inv_phi_tilde(1 - phi_tilde_star)
+    if phi_tilde_star >= 0:
+        return float('nan')
+    x_bar = float('nan')
+    if phi_tilde_star < -0.00188203927:
+        g = 1 / (phi_tilde_star - 0.5)
+        g2 = g * g
+        xi_bar = (0.032114372355 - g2 * (0.016969777977 - g2 * (0.002620733246 - 0.000096066952861 * g2))) / (1 - g2 * (0.6635646938 - g2 * (0.14528712196 - 0.010472855461 * g2)))
+        x_bar = g * (ONE_OVER_SQRT_TWO_PI + xi_bar * g2)
+    else:
+        h = math.sqrt(-math.log(-phi_tilde_star))
+        x_bar = (9.4883409779 - h * (9.6320903635 - h * (0.58556997323 + 2.1464093351 * h))) / (1 - h * (0.65174820867 + h * (1.5120247828 + 0.000066437847132 * h)))
+    q = (phi_tilde(x_bar) - phi_tilde_star) / norm_pdf(x_bar)
+    x2 = x_bar * x_bar
+    x_star = x_bar + 3 * q * x2 * (2 - q * x_bar * (2 + x2)) / (6 + q * x_bar * (-12 + x_bar * (6 * q + x_bar * (-6 + q * x_bar * (3 + x2)))))
+    return x_star
+
+def intrinsic_value(forward, strike, q):
+    return abs(max((strike - forward) if q < 0 else (forward - strike), 0.0))
+
+def bachelier(forward, strike, sigma, T, q):
+    s = abs(sigma) * math.sqrt(T)
+    if s < DBL_MIN:
+        return intrinsic_value(forward, strike, q)
+    theta = -1 if q < 0 else 1
+    moneyness = theta * (forward - strike)
+    x = moneyness / s
+    return s * phi_tilde_times_x(x)
+
+def implied_normal_volatility(price, forward, strike, T, q):
+    if forward == strike:
+        return price * SQRT_TWO_PI / math.sqrt(T)
+    intrinsic = intrinsic_value(forward, strike, q)
+    absolute_moneyness = abs(forward - strike)
+    if price == intrinsic:
+        return 0.0
+    if price < intrinsic:
+        return -float('inf')
+    phi_tilde_star = (intrinsic - price) / absolute_moneyness
+    x_star = inv_phi_tilde(phi_tilde_star)
+    return absolute_moneyness / abs(x_star * math.sqrt(T))
+
+def dbl_epsilon():
+    return DBL_EPSILON
+
+def dbl_min():
+    return DBL_MIN
+
+def normpdf(x):
+    return norm_pdf(x)
+
+def normcdf(x):
+    return norm_cdf(x)
+
+def phitilde(x):
+    return phi_tilde(x)
+
+def invphitilde(phi_tilde_star):
+    return inv_phi_tilde(phi_tilde_star)
+
+def impliednormalvolatility(price, forward, strike, T, q):
+    return implied_normal_volatility(price, forward, strike, T, q)
